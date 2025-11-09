@@ -136,9 +136,10 @@ UniProt contains all of the major releases. We can acquire this specific snapsho
 ```bash
 wget https://ftp.uniprot.org/pub/databases/uniprot/previous_major_releases/release-2023_02/uniref/uniref2023_02.tar.gz
 ```
-The 2023 release for MGnify Proteins (MGnify 90) is found here:
+The 2023 release for MGnify Proteins (MGnify 90) is found [here](https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02) and you can run:
 ```bash
-[wget https://ftp.uniprot.org/pub/databases/uniprot/previous_major_releases/release-2023_02/uniref/uniref2023_02.tar.gz](https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02)
+BASE="https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02"
+wget -c "${BASE}/mgy_clusters.fa.gz"
 ```
 
 JGI is a little more complicated because we need to first create an account and then specify the proper portals. From the JGI search UI you can export a report that includes the “Portal ID” column, which this script consumes. JGI’s help explains where to grab those IDs and shows the exact curl login + “get-directory” calls.
