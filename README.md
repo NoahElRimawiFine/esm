@@ -129,166 +129,21 @@ model: ESM3InferenceClient = esm.sdk.client("esm3-medium-2024-08", token="<your 
 and the exact same code will work.
 This enables a seamless transition from smaller and faster models, to our largest and most capable protein language models for protein design work.
 
-### Async Forge Client
-The Forge client supports asynchronous API calls for improved performance when making multiple requests. Async methods follow the same naming convention as their synchronous counterparts, with `async_` prepended to the method name. For example:
+## Downloading the data
+In order to download the same training data that ESM uses, we must download UniRef (2023_02), MGnify90 (2023_02), and all non-restricted JGI studies available as of July 31 2023.
 
-```py
-model = esm.sdk.client("esm3-medium-2024-08", token="<your forge token>")
-
-protein = await model.async_generate(protein, GenerationConfig(track="sequence"))
+UniProt contains all of the major releases. We can acquire this specific snapshot dataset by running:
+```bash
+wget https://ftp.uniprot.org/pub/databases/uniprot/previous_major_releases/release-2023_02/uniref/uniref2023_02.tar.gz
+```
+The 2023 release for MGnify Proteins (MGnify 90) is found here:
+```bash
+[wget https://ftp.uniprot.org/pub/databases/uniprot/previous_major_releases/release-2023_02/uniref/uniref2023_02.tar.gz](https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02)
 ```
 
-### ESM3 Example Usage
- <a name="esm3-example"></a>
-
-[Generating a novel GFP with chain of thought generation using ESM3](./cookbook/tutorials/3_gfp_design.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/evolutionaryscale/esm/blob/main/cookbook/tutorials/3_gfp_design.ipynb)
-
-[Advanced prompting with ESM3 input tracks](./cookbook/tutorials/4_forge_generate.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/evolutionaryscale/esm/blob/main/cookbook/tutorials/4_forge_generate.ipynb)
+JGI is a little more complicated because we need to first create an account and then specify the proper portals. From the JGI search UI you can export a report that includes the “Portal ID” column, which this script consumes. JGI’s help explains where to grab those IDs and shows the exact curl login + “get-directory” calls.
 
 
-
-## ESM C <a name="esm-c"></a>
-[ESM Cambrian](https://www.evolutionaryscale.ai/blog/esm-cambrian) is a parallel model family to our flagship ESM3 generative models. While ESM3 focuses on controllable generation of proteins, ESM C focuses on creating representations of the underlying biology of proteins.
-
-ESM C is designed as a drop-in replacement for ESM2 and comes with major performance benefits. The 300M parameter ESM C delivers similar performance to ESM2 650M with dramatically reduced memory requirements and faster inference. The 600M parameter ESM C rivals the 3B parameter ESM2 and approaches the capabilities of the 15B model, delivering frontier performance with far greater efficiency. The 6B parameter ESM C outperforms the best ESM2 models by a wide margin.
-
-ESM C can be run locally, via [the Forge API](https://forge.evolutionaryscale.ai/) or through [AWS SageMaker](https://aws.amazon.com/marketplace/seller-profile?id=seller-iw2nbscescndm).
-
-### Quickstart for ESM C Open Models<a name="esm-c-open"></a>
-When running the code below, a pytorch model will be instantiated locally on your machine, with the weights downloaded from the [HuggingFace hub](https://huggingface.co/EvolutionaryScale).
-```py
-from esm.models.esmc import ESMC
-from esm.sdk.api import ESMProtein, LogitsConfig
-
-protein = ESMProtein(sequence="AAAAA")
-client = ESMC.from_pretrained("esmc_300m").to("cuda") # or "cpu"
-protein_tensor = client.encode(protein)
-logits_output = client.logits(
-   protein_tensor, LogitsConfig(sequence=True, return_embeddings=True)
-)
-print(logits_output.logits, logits_output.embeddings)
-```
-
-To use Flash Attention with the open weights:
-
-Simply install flash-attn package, which will enable Flash Attention automatically:
-```
-pip install flash-attn --no-build-isolation
-```
-
-You can also disable flash-attn by passing ``use_flash_attn=False`` to utils like ``ESMC_300M_202412``.
-
-### ESM C 6B via Forge API <a name="esm-c-forge"></a>
-
-Apply for access and copy the API token from the console by first visiting [Forge](https://forge.evolutionaryscale.ai).
-
-With the code below, a local python client talks to the model inference server hosted by EvolutionaryScale.
-
-```py
-from esm.sdk.forge import ESM3ForgeInferenceClient
-from esm.sdk.api import ESMProtein, LogitsConfig
-
-# Apply for forge access and get an access token
-forge_client = ESM3ForgeInferenceClient(model="esmc-6b-2024-12", url="https://forge.evolutionaryscale.ai", token="<your forge token>")
-protein_tensor = forge_client.encode(protein)
-logits_output = forge_client.logits(
-   protein_tensor, LogitsConfig(sequence=True, return_embeddings=True)
-)
-print(logits_output.logits, logits_output.embeddings)
-```
-
-Remember to replace `<your forge token>` with your actual Forge access token.
-
-### Forge Batch Executor
-
-For jobs that require processing multiple inputs, the Forge Batch Executor provides a streamlined and way to execute them concurrently and efficiently while respecting rate limits and adapting to request latency.
-
-```py
-from esm.sdk.forge import ESM3ForgeInferenceClient
-from esm.sdk.api import ESMProtein, LogitsConfig
-from esm.sdk import batch_executor
-
-def embed_sequence(client: ESM3ForgeInferenceClient, sequence: str) -> LogitsOutput:
-    protein = ESMProtein(sequence=sequence)
-    protein_tensor = client.encode(protein)
-    if isinstance(protein_tensor, ESMProteinError):
-        raise protein_tensor
-    output = client.logits(protein_tensor, LogitsConfig(sequence=True, return_embeddings=True))
-    return output
-
-sequences = ["A", "AA", "AAA"]
-client =  ESM3ForgeInferenceClient(model="esmc-6b-2024-12", url="https://forge.evolutionaryscale.ai", token="<your forge token>")
-
-# Usage Example:
-# To execute a batch job, wrap your function inside the batch executor context manager.
-# Syntax:
-# with batch_executor() as executor:
-#     outputs = executor.execute_batch(user_func=<your_function>, **kwargs)
-
-with batch_executor() as executor:
-    outputs = executor.execute_batch(user_func=embed_sequence, client=client, sequence=sequences)
-```
-
-### ESM C via SageMaker for Commercial Use  <a name="esm-c-sagemaker"></a>
-
-ESM C models are also available on Amazon SageMaker under the [Cambrian Inference Clickthrough License Agreement](https://www.evolutionaryscale.ai/policies/cambrian-inference-clickthrough-license-agreement).
-Under this license agreement, models are available for broad use for commercial entities.
-
-You will need an admin AWS access to an AWS account to follow these instructions. To deploy, first we need to deploy the AWS package:
-
-1. Find the ESM C model version you want to subscribe to. All of our offerings are visible [here](https://aws.amazon.com/marketplace/seller-profile?id=seller-iw2nbscescndm).
-2. Click the name of the model version you are interested in, review pricing information and the end user license agreement (EULA), then click "Continue to Subscribe".
-3. Once you have subscribed, you should be able to see our model under your [marketplace subscriptions](https://us-east-1.console.aws.amazon.com/marketplace/home#/subscriptions).
-4. Click the product name and then from the "Actions" dropdown select "Configure".
-5. You will next see the "Configure and Launch" UI. There are multiple deployment paths - we recommend using "AWS CloudFormation".
-6. The default value for "Service Access" may or may not work. We recommend clicking "Create and use a new service role".
-7. Click "Launch CloudFormation Template".  This takes 15 to 25 minutes depending on model size.
-8. On the "Quick create stack" page, ensure the stack name and endpoint names are not already used. You can check existing stack names [here](https://console.aws.amazon.com/cloudformation/home/stacks) and existing endpoint names [here](https://us-east-1.console.aws.amazon.com/sagemaker/home?region=us-east-1#/endpoints).
-
-The SageMaker deployment of the model now lives on a dedicated GPU instance inside your AWS environment, and will be billed directly to your AWS account.
-Make sure to remember to shut down the instance after you stop using it. Find the CloudFormation stack you created [here](https://us-east-1.console.aws.amazon.com/cloudformation/home), select it, and then click "Delete" to clean up all resources.
-
-After creating the endpoint, you can create a SageMaker client and use it the same way as a Forge client. They share the same API.
-The local python client talks to the SageMaker endpoint you just deployed, which runs on an instance with a GPU to run model inference.
-
-Ensure that the code below runs in an environment that has AWS credentials available for the account which provisioned SageMaker resources.  Learn more about general AWS credential options [here](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html#cli-chap-authentication-precedence).
-
-```py
-from esm.sdk.sagemaker import ESM3SageMakerClient
-from esm.sdk.api import ESMProtein, LogitsConfig
-
-sagemaker_client = ESM3SageMakerClient(
-   # E.g. "Endpoint-ESMC-6B-1"
-   endpoint_name=SAGE_ENDPOINT_NAME,
-   # E.g. "esmc-6b-2024-12". Same model names as in Forge.
-   model=MODEL_NAME,
-)
-
-protein = ESMProtein(sequence="AAAAA")
-protein_tensor = sagemaker_client.encode(protein)
-logits_output = sagemaker_client.logits(
-   protein_tensor, LogitsConfig(sequence=True, return_embeddings=True)
-)
-print(logits_output.logits, logits_output.embeddings)
-```
-
-### ESM C Example Usage
- <a name="esm-c-example"></a>
-
-[Embedding a sequence using ESM C](./cookbook/tutorials/2_embed.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/evolutionaryscale/esm/blob/main/cookbook/tutorials/2_embed.ipynb)
-
-## Responsible Development <a name="responsible-development"></a>
-
-EvolutionaryScale is a public benefit company. Our mission is to develop artificial intelligence to understand biology for the benefit of human health and society, through partnership with the scientific community, and open, safe, and responsible research. Inspired by the history of our field as well as [new principles and recommendations](https://responsiblebiodesign.ai/), we have created a Responsible Development Framework to guide our work towards our mission with transparency and clarity.
-
-The core tenets of our framework are
-
-- We will communicate the benefits and risks of our research
-- We will proactively and rigorously evaluate the risk of our models before public deployment
-- We will adopt risk mitigation strategies and precautionary guardrails
-- We will work with stakeholders in government, policy, and civil society to keep them informed
-
-With this in mind, we have performed a variety of mitigations for `esm3-sm-open-v1`, detailed in our [paper](https://www.science.org/doi/10.1126/science.ads0018)
 
 ## Licenses  <a name="licenses"></a>
 
