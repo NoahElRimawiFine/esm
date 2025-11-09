@@ -142,7 +142,14 @@ BASE="https://ftp.ebi.ac.uk/pub/databases/metagenomics/peptide_database/2023_02"
 wget -c "${BASE}/mgy_clusters.fa.gz"
 ```
 
-JGI is a little more complicated because we need to first create an account and then specify the proper portals. From the JGI search UI you can export a report that includes the “Portal ID” column, which this script consumes. JGI’s help explains where to grab those IDs and shows the exact curl login + “get-directory” calls.
+JGI is a little more complicated because we need to first create an account and then specify the proper portals. From the JGI search UI you can export a report that includes the “Portal ID” column, which this script consumes. JGI’s help explains where to grab those IDs and shows the exact curl login + “get-directory” calls. Make sure you save your username and password in a .env file. You can do so like this:
+```bash
+JGI_USER=xxxxxx
+JGI_PASS=xxxxxx
+
+source .env
+```
+Make sure to add the .env to the .gitignore so it isn't public!
 
 First we need to grab all public portals from 2023. You can get them from this [link](https://genome.jgi.doe.gov/portal/). Once you are here, go to advanced search, click "JGI portals" from "search within" and then "show all". This will allow you to download a csv that contains all of the project IDs alongside other metadata. Once you have this you can run these commands:
 ```bash
@@ -159,6 +166,11 @@ at portals.txt | grep -oE '[A-Za-z0-9_]+_FD' | sort -u > portals_clean.txt
 ```
 
 Now you have the clean list of portal IDs.
+
+Once you have a clean list of portal IDs you can run my download script:
+```bash
+./download_jgi.sh portals_clean.txt dir/you/want/to/save/to
+```
 
 
 
