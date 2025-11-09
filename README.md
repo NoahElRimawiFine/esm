@@ -144,6 +144,22 @@ wget -c "${BASE}/mgy_clusters.fa.gz"
 
 JGI is a little more complicated because we need to first create an account and then specify the proper portals. From the JGI search UI you can export a report that includes the “Portal ID” column, which this script consumes. JGI’s help explains where to grab those IDs and shows the exact curl login + “get-directory” calls.
 
+First we need to grab all public portals from 2023. You can get them from this [link](https://genome.jgi.doe.gov/portal/). Once you are here, go to advanced search, click "JGI portals" from "search within" and then "show all". This will allow you to download a csv that contains all of the project IDs alongside other metadata. Once you have this you can run these commands:
+```bash
+curl 'https://signon.jgi.doe.gov/signon/create' \
+--data-urlencode "login=${JGI_USER}" \
+--data-urlencode "password=${JGI_PASS}" \
+-c cookies > /dev/null
+
+pip install csvkit
+
+csvcut -c "Portal ID" genome_project.csv > portals.txt
+
+at portals.txt | grep -oE '[A-Za-z0-9_]+_FD' | sort -u > portals_clean.txt
+```
+
+Now you have the clean list of portal IDs.
+
 
 
 ## Licenses  <a name="licenses"></a>
