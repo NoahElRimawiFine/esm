@@ -34,6 +34,10 @@ To get started with ESM, install the python library using pip:
 pip install esm
 ```
 
+## Installation instructions for local development
+After cloning the repo, use pixi's official installation site (https://pixi.sh/dev/installation/) to install pixi package manager.
+In the root of the esm repo, run `pixi install`.
+
 ## Available Models <a name="available-models"></a>
 
 ### ESM 3 Family
